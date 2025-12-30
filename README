@@ -5,18 +5,18 @@ A simple project to help with creating SCP labels.
 
 Highly customizable, with options such as:
 
-* Overlays
-* Text color
-* Hazards
-* Label types
-* And more
+- Overlays
+- Text color
+- Hazards
+- Label types
+- And more
 
 ---
 
 ### Build Requirements
 
-* At least **2–3 GB** of free space
-* Python package `colorama` (the build script will attempt to install it automatically, but it may fail on some Linux distros)
+- At least **2–3 GB** of free space
+- Python package `colorama` (the build script will attempt to install it automatically, but it may fail on some Linux distros)
 
 You can build using `cargo`, but a helper script is included (mostly works).
 
@@ -44,7 +44,7 @@ Replace `x64` with `x86` if you’re on a 32-bit system.
 
 ### Credits
 
-* Base materials from [AA2004 on YouTube](https://www.youtube.com/@AA2004)
-* Modified folder and file names for easier navigation
-* Added extra content not included in the original archive
+- Base materials from [AA2004 on YouTube](https://www.youtube.com/@AA2004)
+- Modified folder and file names for easier navigation
+- Added extra content not included in the original archive
 
