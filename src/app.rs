@@ -110,6 +110,8 @@ pub enum Message {
     BurnOpacityChanged(f32),
     SelectBurnPressed,
     BurnSelected(Result<PathBuf, LabelError>),
+    BurnOpacityTextChanged(String)
+
 }
 
 impl Application for App {
@@ -149,8 +151,8 @@ impl Application for App {
 
     fn update(&mut self, message: Message) -> Command<Message> {
         match message {
-            Message::BurnToggled(value) => {
-                self.config.apply_burn = value;
+            Message::BurnToggled(enabled) => {
+                self.config.apply_burn = enabled;
                 return Command::perform(async {}, |_| Message::RegeneratePreview);
             }
 
@@ -158,6 +160,23 @@ impl Application for App {
                 self.config.burn_opacity = value;
                 return Command::perform(async {}, |_| Message::RegeneratePreview);
             }
+
+            Message::BurnOpacityTextChanged(value) => {
+                let clamped_val: f32 = match value.parse::<f32>() {
+                    Ok(v) => {
+                        let v: f32 = v; // explicit annotation
+                        v.clamp(0.0, 1.0)
+                    }
+                    Err(_) if value.is_empty() => 0.5,
+                    Err(_) => return Command::none(),
+                };
+
+                self.config.burn_opacity = clamped_val;
+
+                // Command::perform needs a Send future
+                Command::perform(async { () }, |_| Message::RegeneratePreview)
+            }
+
 
             Message::SelectBurnPressed => {
                 return Command::perform(

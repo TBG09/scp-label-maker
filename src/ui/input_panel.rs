@@ -303,24 +303,18 @@ pub fn view(config: &LabelConfig, validation: &Option<ImageValidation>) -> Eleme
         
     ]
     .spacing(5)).style(theme::panel());
-    let burn_opacity = config.burn_opacity; 
+    let burn_opacity = config.burn_opacity; // Copy f32 to use in closures
 
     let burn_section = container(column![
         checkbox("Apply burn overlay", config.apply_burn)
             .on_toggle(Message::BurnToggled),
         if config.apply_burn {
             Into::<Element<'static, Message>>::into(column![
-                text(format!("Burn Intensity: {:.0}%", burn_opacity * 100.0)).size(12),
+                text(format!("Burn Opacity: {:.0}%", burn_opacity * 100.0)).size(12),
                 row![
                     slider(0.0..=1.0, burn_opacity, Message::BurnOpacityChanged).step(0.05),
-                    text_input("0.5", &format!("{:.4}", burn_opacity))
-                        .on_input(move |s| { 
-                            if let Ok(v) = s.parse::<f32>() {
-                                Message::BurnOpacityChanged(v)
-                            } else {
-                                Message::BurnOpacityChanged(burn_opacity) 
-                            }
-                        })
+                    text_input("0.5", &format!("{:.2}", burn_opacity))
+                        .on_input(move |s| Message::BurnOpacityTextChanged(s)) // Use move here
                         .padding(5)
                         .width(60),
                 ]

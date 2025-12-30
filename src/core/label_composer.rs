@@ -66,9 +66,8 @@ impl LabelComposer {
         }
 
         if config.apply_burn {
-            // Pull from the burn_overlay field in your AssetManager
-            let burn_tex: RgbaImage = assets.burn_overlay.clone().into();
-            self.apply_burn_effect(&mut canvas, &burn_tex, config.burn_opacity);
+            let burn_img: RgbaImage = assets.burn_overlay.clone().into();
+            self.apply_burn_overlay(&mut canvas, &burn_img, config.burn_opacity);
         }
         
         if config.output_resolution != LABEL_SIZE {
@@ -178,19 +177,14 @@ impl LabelComposer {
         }
     }
 
-    fn apply_burn_effect(&self, canvas: &mut RgbaImage, burn_texture: &RgbaImage, opacity: f32) {
+    fn apply_burn_overlay(&self, canvas: &mut RgbaImage, burn: &RgbaImage, opacity: f32) {
         for (x, y, pixel) in canvas.enumerate_pixels_mut() {
-            if let Some(burn_pixel) = burn_texture.get_pixel_checked(x, y) {
-                let effective_opacity = (burn_pixel[3] as f32 / 255.0) * opacity;
+            if let Some(burn_pixel) = burn.get_pixel_checked(x, y) {
+                let alpha = (burn_pixel[3] as f32 / 255.0) * opacity;
                 
-                if effective_opacity > 0.0 {
-                    for i in 0..3 { // R, G, B
-                        let base = pixel[i] as f32;
-                        let blend = burn_pixel[i] as f32;
-                        
-                        let multiply = (base * blend) / 255.0;
-                        
-                        pixel[i] = (base + (multiply - base) * effective_opacity) as u8;
+                if alpha > 0.0 {
+                    for i in 0..3 {
+                        pixel[i] = (pixel[i] as f32 * (1.0 - alpha) + burn_pixel[i] as f32 * alpha) as u8;
                     }
                 }
             }
