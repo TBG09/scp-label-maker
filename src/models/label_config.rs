@@ -61,7 +61,8 @@ pub struct LabelConfig {
     pub class_text_color: SerializableColor,
     pub scp_line_spacing: f32,   
     pub class_line_spacing: f32,
-    
+    pub burn_opacity: f32,
+    pub apply_burn: bool,
 }
 
 impl Default for LabelConfig {
@@ -92,7 +93,8 @@ impl Default for LabelConfig {
             class_text_color: Color::BLACK.into(),
             scp_line_spacing: 1.2,
             class_line_spacing: 1.2,
-            
+            burn_opacity: 0.5,
+            apply_burn: false,
         }
     }
 }

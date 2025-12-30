@@ -300,9 +300,38 @@ pub fn view(config: &LabelConfig, validation: &Option<ImageValidation>) -> Eleme
         } else {
             Into::<Element<'static, Message>>::into(column![])
         }
+        
     ]
     .spacing(5)).style(theme::panel());
+    let burn_opacity = config.burn_opacity; 
 
+    let burn_section = container(column![
+        checkbox("Apply burn overlay", config.apply_burn)
+            .on_toggle(Message::BurnToggled),
+        if config.apply_burn {
+            Into::<Element<'static, Message>>::into(column![
+                text(format!("Burn Intensity: {:.0}%", burn_opacity * 100.0)).size(12),
+                row![
+                    slider(0.0..=1.0, burn_opacity, Message::BurnOpacityChanged).step(0.05),
+                    text_input("0.5", &format!("{:.4}", burn_opacity))
+                        .on_input(move |s| { 
+                            if let Ok(v) = s.parse::<f32>() {
+                                Message::BurnOpacityChanged(v)
+                            } else {
+                                Message::BurnOpacityChanged(burn_opacity) 
+                            }
+                        })
+                        .padding(5)
+                        .width(60),
+                ]
+                .spacing(5),
+            ]
+            .spacing(5))
+        } else {
+            Into::<Element<'static, Message>>::into(column![])
+        }
+    ]
+    .spacing(5)).style(theme::panel());
     let export_section: iced::widget::Container<'_, Message, iced::Theme> = container(column![
         text("Export & Project Management: ").size(14),
         row![
@@ -346,6 +375,9 @@ let content = column![
     row![
         hazard_section,
         texture_section,
+    ].spacing(15),
+    row![
+        burn_section,
     ].spacing(15),
     export_section,
 ]

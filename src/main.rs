@@ -144,6 +144,12 @@ struct GenerateArgs {
     #[arg(long, default_value_t = LabelConfig::default().class_line_spacing, value_parser = |s: &str| parse_float_range(s, 0.5, 3.0))]
     class_line_spacing: f32,
 
+    #[arg(long, default_value_t = LabelConfig::default().burn_opacity, value_parser = |s: &str| parse_float_range(s, 0.5, 3.0))]
+    burn_opacity: f32,
+
+    #[arg(long, action = clap::ArgAction::SetTrue)]
+    apply_burn: bool,
+
     #[arg(short, long)]
     output: PathBuf,
 }
@@ -216,6 +222,8 @@ fn run_cli(args: GenerateArgs) -> anyhow::Result<()> {
         class_text_color,
         scp_line_spacing: args.scp_line_spacing,
         class_line_spacing: args.class_line_spacing,
+        burn_opacity: args.burn_opacity,
+        apply_burn: args.apply_burn,
     };
 
     println!("{}", format!("Generating label for SCP-{}...", config.scp_number).cyan());

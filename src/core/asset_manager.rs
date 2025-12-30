@@ -5,7 +5,7 @@ use serde::{Serialize, Deserialize};
 use std::collections::HashMap;
 use std::fs::{self, File};
 use std::io::Read;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use zip::ZipArchive;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -40,6 +40,7 @@ pub struct AssetManager {
     pub hazard_icons: HashMap<(ClassType, Hazard), SerializableRgbaImage>,
     pub texture_overlay: SerializableRgbaImage,
     pub placeholder: SerializableRgbaImage,
+    pub burn_overlay: SerializableRgbaImage
 }
 
 impl AssetManager {
@@ -74,6 +75,9 @@ impl AssetManager {
                 log::warn!("Texture overlay not found, using transparent placeholder.");
                 placeholder.clone()
             });
+        let burn_path = "resources/materials/textures/burn_overlay.png";
+        let burn_overlay = Self::load_asset(burn_path, &mut archives, true)
+            .unwrap_or_else(|_| placeholder.clone());
 
         log::info!(
             "Asset loading complete. Loaded from {} texture packs and local resources.", 
@@ -85,6 +89,7 @@ impl AssetManager {
             hazard_icons,
             texture_overlay,
             placeholder,
+            burn_overlay,
         })
     }
 
@@ -166,5 +171,15 @@ impl AssetManager {
 
     pub fn get_texture(&self) -> &SerializableRgbaImage {
         &self.texture_overlay
+    }
+    pub fn get_burn_overlay(&self) -> &SerializableRgbaImage {
+        &self.burn_overlay
+    }
+    pub fn load_burn_texture(&mut self, path: &PathBuf) -> Result<(), LabelError> {
+        let img = image::open(path)
+            .map_err(|e| LabelError::Io(format!("Failed to load burn overlay: {}", e)))?;
+        
+        self.burn_overlay = SerializableRgbaImage::from(img.to_rgba8());
+        Ok(())
     }
 }

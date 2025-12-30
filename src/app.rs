@@ -106,6 +106,10 @@ pub enum Message {
     ScpLineSpacingTextChanged(String),
     ClassLineSpacingChanged(f32),
     ClassLineSpacingTextChanged(String),
+    BurnToggled(bool),
+    BurnOpacityChanged(f32),
+    SelectBurnPressed,
+    BurnSelected(Result<PathBuf, LabelError>),
 }
 
 impl Application for App {
@@ -145,6 +149,45 @@ impl Application for App {
 
     fn update(&mut self, message: Message) -> Command<Message> {
         match message {
+            Message::BurnToggled(value) => {
+                self.config.apply_burn = value;
+                return Command::perform(async {}, |_| Message::RegeneratePreview);
+            }
+
+            Message::BurnOpacityChanged(value) => {
+                self.config.burn_opacity = value;
+                return Command::perform(async {}, |_| Message::RegeneratePreview);
+            }
+
+            Message::SelectBurnPressed => {
+                return Command::perform(
+                    async {
+                        rfd::AsyncFileDialog::new()
+                            .add_filter("Image", &["png", "jpg", "jpeg"])
+                            .pick_file()
+                            .await
+                            .map(|h| h.path().to_path_buf())
+                            .ok_or_else(|| LabelError::Io("Selection cancelled".to_string()))
+                    },
+                    Message::BurnSelected,
+                );
+            }
+
+            Message::BurnSelected(result) => {
+                match result {
+                    Ok(path) => {
+                        if let Some(assets) = &mut self.assets {
+                            if let Err(e) = assets.load_burn_texture(&path) {
+                                return Command::perform(async {}, move |_| Message::ShowNotification(e.to_string()));
+                            }
+                        }
+                        return Command::perform(async {}, |_| Message::RegeneratePreview);
+                    }
+                    Err(e) => return Command::perform(async {}, move |_| Message::ShowNotification(e.to_string())),
+                }
+            }
+
+
             Message::SaveProject => {
                 Command::perform(
                     async {
