@@ -2,7 +2,7 @@ use clap::{Parser, Subcommand, Args};
 use iced::{Application, Settings, Color};
 use anyhow::{Context};
 use crate::app::App;
-use crate::models::{LabelConfig, ClassType, Hazard, ResizeMethod, OutputFormat};
+use crate::models::{LabelConfig, ClassType, Hazard, ResizeMethod, OutputFormat, BurnType};
 use crate::core::label_composer::generate_and_save_label;
 use std::path::PathBuf;
 use colored::Colorize;
@@ -144,11 +144,50 @@ struct GenerateArgs {
     #[arg(long, default_value_t = LabelConfig::default().class_line_spacing, value_parser = |s: &str| parse_float_range(s, 0.5, 3.0))]
     class_line_spacing: f32,
 
-    #[arg(long, default_value_t = LabelConfig::default().burn_opacity, value_parser = |s: &str| parse_float_range(s, 0.5, 3.0))]
-    burn_opacity: f32,
-
     #[arg(long, action = clap::ArgAction::SetTrue)]
     apply_burn: bool,
+
+    #[arg(long, value_enum, default_value_t = LabelConfig::default().burn_type)]
+    burn_type: BurnType,
+
+    #[arg(long, default_value_t = LabelConfig::default().burn_amount,
+        value_parser = |s: &str| parse_float_range(s, 0.0, 1.0))]
+    burn_amount: f32,
+
+    #[arg(long, default_value_t = LabelConfig::default().burn_scale,
+        value_parser = |s: &str| parse_float_range(s, 0.1, 5.0))]
+    burn_scale: f32,
+
+    #[arg(long, default_value_t = LabelConfig::default().burn_detail,
+        value_parser = |s: &str| parse_float_range(s, 0.0, 1.0))]
+    burn_detail: f32,
+
+    #[arg(long, default_value_t = LabelConfig::default().burn_edge_softness,
+        value_parser = |s: &str| parse_float_range(s, 0.0, 1.0))]
+    burn_edge_softness: f32,
+
+    #[arg(long, default_value_t = LabelConfig::default().burn_irregularity,
+        value_parser = |s: &str| parse_float_range(s, 0.0, 1.0))]
+    burn_irregularity: f32,
+
+    #[arg(long, default_value_t = LabelConfig::default().burn_char,
+        value_parser = |s: &str| parse_float_range(s, 0.0, 1.0))]
+    burn_char: f32,
+
+    #[arg(long, default_value_t = LabelConfig::default().burn_seed)]
+    burn_seed: u32,
+
+    #[arg(long, default_value_t = LabelConfig::default().burn_scale_multiplier)]
+    burn_scale_multiplier: f32,
+
+    #[arg(long, default_value_t = LabelConfig::default().burn_detail_blend, value_parser = |s: &str| parse_float_range(s, 0.0, 1.0))]
+    burn_detail_blend: f32,
+
+    #[arg(long, default_value_t = LabelConfig::default().burn_turbulence_freq)]
+    burn_turbulence_freq: f32,
+
+    #[arg(long, default_value_t = LabelConfig::default().burn_turbulence_strength, value_parser = |s: &str| parse_float_range(s, 0.0, 1.0))]
+    burn_turbulence_strength: f32,
 
     #[arg(short, long)]
     output: PathBuf,
@@ -222,8 +261,19 @@ fn run_cli(args: GenerateArgs) -> anyhow::Result<()> {
         class_text_color,
         scp_line_spacing: args.scp_line_spacing,
         class_line_spacing: args.class_line_spacing,
-        burn_opacity: args.burn_opacity,
         apply_burn: args.apply_burn,
+        burn_type: args.burn_type,
+        burn_amount: args.burn_amount,
+        burn_scale: args.burn_scale,
+        burn_detail: args.burn_detail,
+        burn_edge_softness: args.burn_edge_softness,
+        burn_irregularity: args.burn_irregularity,
+        burn_char: args.burn_char,
+        burn_seed: args.burn_seed,
+        burn_scale_multiplier: args.burn_scale_multiplier,
+        burn_detail_blend: args.burn_detail_blend,
+        burn_turbulence_freq: args.burn_turbulence_freq,
+        burn_turbulence_strength: args.burn_turbulence_strength,
     };
 
     println!("{}", format!("Generating label for SCP-{}...", config.scp_number).cyan());

@@ -1,6 +1,6 @@
 use crate::app::Message;
-use crate::models::{ClassType, Hazard, ImageValidation, LabelConfig, ResizeMethod, ValidationStatus};
-use iced::widget::{button, checkbox, column, container, pick_list, row, slider, text, text_input};
+use crate::models::{ClassType, Hazard, ImageValidation, LabelConfig, ResizeMethod, ValidationStatus, BurnType};
+use iced::widget::{button, checkbox, column, container, pick_list, row, slider, text, text_input, Space, radio};
 use iced::{Element, Length, Color};
 use crate::ui::theme;
 
@@ -17,370 +17,667 @@ fn parse_hex_color(hex: &str) -> Result<Color, ()> {
     Ok(Color::from_rgb(r as f32 / 255.0, g as f32 / 255.0, b as f32 / 255.0))
 }
 
-pub fn view(config: &LabelConfig, validation: &Option<ImageValidation>) -> Element<'static, Message> {
-    let title: iced::widget::Text<iced::Theme> = text("SCP Number Label Maker").size(24);
+fn section_header(title: &str) -> iced::widget::Text<'static, iced::Theme> {
+    text(title)
+        .size(16)
+        .style(iced::theme::Text::Color(theme::ACCENT))
+}
+
+fn label_text(title: &str) -> iced::widget::Text<'static, iced::Theme> {
+    text(title)
+        .size(13)
+        .style(iced::theme::Text::Color(theme::TEXT_SECONDARY))
+}
+
+pub fn view(config: &LabelConfig, validation: &Option<ImageValidation>, advanced_burn_settings_visible: bool) -> Element<'static, Message> {
+    let title = text("SCP Label Maker")
+        .size(28)
+        .style(iced::theme::Text::Color(Color::WHITE));
+    
+    let subtitle = text("Create custom SCP Foundation labels")
+        .size(14)
+        .style(iced::theme::Text::Color(theme::TEXT_SECONDARY));
+
     let scp_text_color = config.scp_text_color;
     let class_text_color = config.class_text_color;
-    let scp_input: iced::widget::Column<'_, Message, iced::Theme> = column![
-        text("SCP Number:").size(14),
+    
+    let scp_input = column![
+        label_text("SCP Number"),
         row![
-            text("SCP-").size(24),
+            text("SCP-")
+                .size(20)
+                .style(iced::theme::Text::Color(theme::ACCENT)),
             text_input("001", &config.scp_number)
                 .on_input(Message::ScpNumberChanged)
                 .on_submit(Message::ScpNumberSubmitted(config.scp_number.clone()))
                 .padding(10)
+                .width(120)
         ]
-        .spacing(5),
+        .spacing(8)
+        .align_items(iced::Alignment::Center),
     ]
-    .spacing(5);
+    .spacing(8);
 
     let class_input = column![
-        text("Object Class Text:").size(14),
+        label_text("Object Class"),
         text_input("SAFE", &config.object_class_text)
             .on_input(Message::ObjectClassChanged)
             .on_submit(Message::ObjectClassSubmitted(config.object_class_text.clone()))
             .padding(10)
+            .width(200)
     ]
-    .spacing(5);
+    .spacing(8);
 
-    let class_picker: iced::widget::Column<'_, Message, iced::Theme> = column![
-        text("Visual Style:").size(14),
+    let class_picker = column![
+        label_text("Visual Style"),
         pick_list(
             ClassType::all(),
             Some(config.class_type),
             Message::ClassTypeSelected,
         )
-        .padding(10),
+        .padding(10)
+        .width(200),
     ]
-    .spacing(5);
+    .spacing(8);
 
     let alternate_toggle = checkbox(
         "Use alternate style",
         config.use_alternate_style
     )
-    .on_toggle(Message::AlternateStyleToggled);
+    .on_toggle(Message::AlternateStyleToggled)
+    .text_size(13);
 
-    let scp_number_font_size_slider: iced::widget::Column<'_, Message, iced::Theme> = column![
-        text("SCP Number Font Size:").size(14),
-        row![
-            slider(24.0..=72.0, config.scp_number_font_size, |v| Message::ScpNumberFontSizeChanged(v)).step(1.0),
-            text_input("60.0", &config.scp_number_font_size.to_string())
-                .on_input(Message::ScpNumberFontSizeTextChanged)
-                .on_submit(Message::ScpNumberFontSizeSubmitted(config.scp_number_font_size.to_string()))
-                .padding(5)
-                .width(60),
+    let basic_settings = container(
+        column![
+            section_header("Basic Settings"),
+            Space::with_height(10),
+            row![
+                scp_input,
+                Space::with_width(20),
+                class_input,
+            ]
+            .spacing(15),
+            Space::with_height(15),
+            row![
+                class_picker,
+                Space::with_width(20),
+                column![
+                    Space::with_height(20),
+                    alternate_toggle
+                ]
+            ]
+            .spacing(15),
         ]
-        .spacing(5),
-    ]
-    .spacing(5);
+        .spacing(12)
+        .padding(20)
+    )
+    .style(theme::card());
 
-    let object_class_font_size_slider = column![
-        text("Object Class Font Size:").size(14),
-        row![
-            slider(24.0..=72.0, config.object_class_font_size, |v| Message::ObjectClassFontSizeChanged(v)).step(1.0),
-            text_input("60.0", &config.object_class_font_size.to_string())
-                .on_input(Message::ObjectClassFontSizeTextChanged)
-                .on_submit(Message::ObjectClassFontSizeSubmitted(config.object_class_font_size.to_string()))
-                .padding(5)
-                .width(60),
+    let text_size_controls = row![
+        column![
+            label_text("SCP Number Size"),
+            container(
+                row![
+                    container(
+                        slider(24.0..=72.0, config.scp_number_font_size, Message::ScpNumberFontSizeChanged)
+                            .step(1.0)
+                            .width(200)
+                    )
+                    .padding([0, 8]),
+                    container(
+                        text_input("60", &config.scp_number_font_size.to_string())
+                            .on_input(Message::ScpNumberFontSizeTextChanged)
+                            .on_submit(Message::ScpNumberFontSizeSubmitted(config.scp_number_font_size.to_string()))
+                            .padding(8)
+                            .width(65)
+                    )
+                    .style(theme::input_container()),
+                ]
+                .spacing(12)
+                .align_items(iced::Alignment::Center)
+            )
+            .padding(10)
+            .style(theme::slider_container()),
         ]
-        .spacing(5),
+        .spacing(8),
+        Space::with_width(20),
+        column![
+            label_text("Object Class Size"),
+            container(
+                row![
+                    container(
+                        slider(24.0..=72.0, config.object_class_font_size, Message::ObjectClassFontSizeChanged)
+                            .step(1.0)
+                            .width(200)
+                    )
+                    .padding([0, 8]),
+                    container(
+                        text_input("60", &config.object_class_font_size.to_string())
+                            .on_input(Message::ObjectClassFontSizeTextChanged)
+                            .on_submit(Message::ObjectClassFontSizeSubmitted(config.object_class_font_size.to_string()))
+                            .padding(8)
+                            .width(65)
+                    )
+                    .style(theme::input_container()),
+                ]
+                .spacing(12)
+                .align_items(iced::Alignment::Center)
+            )
+            .padding(10)
+            .style(theme::slider_container()),
+        ]
+        .spacing(8),
     ]
-    .spacing(5);
-    
-    let validation_display: iced::widget::Column<'_, Message, iced::Theme> = if let Some(val) = validation {
-        let (_icon, color) = match val.status {
-            ValidationStatus::PerfectFit => ("", iced::Color::from_rgb(0.0, 0.8, 0.0)),
-            ValidationStatus::WillCrop => ("", iced::Color::from_rgb(1.0, 0.6, 0.0)),
-            ValidationStatus::WillStretch => ("", iced::Color::from_rgb(0.9, 0.0, 0.0)),
-            ValidationStatus::NoImage => ("", iced::Color::WHITE),
+    .spacing(15);
+
+    let line_spacing_controls = row![
+        column![
+            label_text("SCP Line Spacing"),
+            row![
+                slider(0.5..=3.0, config.scp_line_spacing, Message::ScpLineSpacingChanged)
+                    .step(0.05)
+                    .width(180),
+                text_input("1.2", &format!("{:.2}", config.scp_line_spacing))
+                    .on_input(Message::ScpLineSpacingTextChanged)
+                    .padding(8)
+                    .width(70),
+            ]
+            .spacing(10)
+            .align_items(iced::Alignment::Center),
+        ]
+        .spacing(8),
+        Space::with_width(20),
+        column![
+            label_text("Class Line Spacing"),
+            row![
+                slider(0.5..=3.0, config.class_line_spacing, Message::ClassLineSpacingChanged)
+                    .step(0.05)
+                    .width(180),
+                text_input("1.2", &format!("{:.2}", config.class_line_spacing))
+                    .on_input(Message::ClassLineSpacingTextChanged)
+                    .padding(8)
+                    .width(70),
+            ]
+            .spacing(10)
+            .align_items(iced::Alignment::Center),
+        ]
+        .spacing(8),
+    ]
+    .spacing(15);
+
+    let color_controls = row![
+        column![
+            label_text("SCP Number Color"),
+            text_input(
+                "#000000",
+                &format!(
+                    "#{:02x}{:02x}{:02x}",
+                    (Color::from(config.scp_text_color).r * 255.0) as u8,
+                    (Color::from(config.scp_text_color).g * 255.0) as u8,
+                    (Color::from(config.scp_text_color).b * 255.0) as u8
+                )
+            )
+            .on_input(move |s| {
+                if let Ok(color) = parse_hex_color(&s) {
+                    Message::ScpTextColorChanged(color)
+                } else {
+                    Message::ScpTextColorChanged(scp_text_color.into())
+                }
+            })
+            .on_submit(Message::ScpTextColorSubmitted(config.scp_text_color.into()))
+            .padding(10)
+            .width(120),
+        ]
+        .spacing(8),
+        Space::with_width(20),
+        column![
+            label_text("Object Class Color"),
+            text_input(
+                "#000000",
+                &format!(
+                    "#{:02x}{:02x}{:02x}",
+                    (Color::from(config.class_text_color).r * 255.0) as u8,
+                    (Color::from(config.class_text_color).g * 255.0) as u8,
+                    (Color::from(config.class_text_color).b * 255.0) as u8
+                )
+            )
+            .on_input(move |s| {
+                if let Ok(color) = parse_hex_color(&s) {
+                    Message::ClassTextColorChanged(color)
+                } else {
+                    Message::ClassTextColorChanged(class_text_color.into())
+                }
+            })
+            .on_submit(Message::ClassTextColorSubmitted(config.class_text_color.into()))
+            .padding(10)
+            .width(120),
+        ]
+        .spacing(8),
+    ]
+    .spacing(15);
+
+    let offset_controls = row![
+        column![
+            label_text("SCP Number Offset (X, Y)"),
+            row![
+                text_input("0.0", &format!("{:.2}", config.scp_text_offset.0))
+                    .on_input(Message::ScpTextOffsetXChanged)
+                    .on_submit(Message::ScpTextOffsetXSubmitted(config.scp_text_offset.0.to_string()))
+                    .padding(8)
+                    .width(80),
+                text_input("0.0", &format!("{:.2}", config.scp_text_offset.1))
+                    .on_input(Message::ScpTextOffsetYChanged)
+                    .on_submit(Message::ScpTextOffsetYSubmitted(config.scp_text_offset.1.to_string()))
+                    .padding(8)
+                    .width(80),
+            ]
+            .spacing(8),
+        ]
+        .spacing(8),
+        Space::with_width(20),
+        column![
+            label_text("Object Class Offset (X, Y)"),
+            row![
+                text_input("0.0", &format!("{:.2}", config.class_text_offset.0))
+                    .on_input(Message::ClassTextOffsetXChanged)
+                    .on_submit(Message::ClassTextOffsetXSubmitted(config.class_text_offset.0.to_string()))
+                    .padding(8)
+                    .width(80),
+                text_input("0.0", &format!("{:.2}", config.class_text_offset.1))
+                    .on_input(Message::ClassTextOffsetYChanged)
+                    .on_submit(Message::ClassTextOffsetYSubmitted(config.class_text_offset.1.to_string()))
+                    .padding(8)
+                    .width(80),
+            ]
+            .spacing(8),
+        ]
+        .spacing(8),
+    ]
+    .spacing(15);
+
+    let text_customization = container(
+        column![
+            section_header("Text Customization"),
+            Space::with_height(5),
+            text("Tip: Use \\n to create new lines in text fields")
+                .size(12)
+                .style(iced::theme::Text::Color(Color::from_rgb(0.5, 0.7, 0.9))),
+            Space::with_height(15),
+            text_size_controls,
+            Space::with_height(15),
+            line_spacing_controls,
+            Space::with_height(15),
+            color_controls,
+            Space::with_height(15),
+            offset_controls,
+            Space::with_height(15),
+            button("Reset All Text Settings")
+                .on_press(Message::ResetText)
+                .padding(10)
+                .style(iced::theme::Button::Secondary),
+        ]
+        .spacing(12)
+        .padding(20)
+    )
+    .style(theme::card());
+
+    let validation_display = if let Some(val) = validation {
+        let (icon, color) = match val.status {
+            ValidationStatus::PerfectFit => ("✓", theme::SUCCESS),
+            ValidationStatus::WillCrop => ("⚠", theme::WARNING),
+            ValidationStatus::WillStretch => ("⚠", Color::from_rgb(0.9, 0.3, 0.3)),
+            ValidationStatus::NoImage => ("ℹ", theme::TEXT_SECONDARY),
         };
         
-        column![
-            text(format!("{}", val.message))
-                .size(12)
+        row![
+            text(icon).size(16).style(iced::theme::Text::Color(color)),
+            text(&val.message)
+                .size(13)
                 .style(iced::theme::Text::Color(color)),
         ]
+        .spacing(8)
+        .align_items(iced::Alignment::Center)
     } else {
-        column![]
+        row![]
     };
 
-    let resize_method = column![
-        text("Resize Method:").size(14),
-        pick_list(
-            vec![ResizeMethod::CropToFit, ResizeMethod::Stretch, ResizeMethod::Letterbox],
-            Some(config.resize_method),
-            Message::ResizeMethodChanged
-        )
-        .padding(10),
-    ]
-    .spacing(5);
-
-    let hazard_picker: iced::widget::Row<'_, Message, iced::Theme> = row![
-        pick_list(
-            Hazard::all(),
-            config.selected_hazard,
-            Message::HazardSelected
-        )
-        .padding(10),
-        button("Clear").on_press(Message::ClearHazard).padding(10),
-    ]
-    .spacing(5);
-
-    let main_settings = container(column![
-        scp_input,
-        class_input,
-    ].spacing(10)).style(theme::panel());
-
-    let style_section = container(column![
-        class_picker,
-        alternate_toggle,
-    ].spacing(10)).style(theme::panel());
-    
-    let text_settings_section = container(column![
+    let image_section = container(
         column![
-            text("Note: Use \\n to create new lines in text fields.")
-                .size(12)
-                .style(iced::Color::from_rgb(0.7, 0.7, 0.2)),
-            iced::widget::horizontal_rule(1),
-        ].spacing(5),
-        text("Text Customization:").size(14),
-        scp_number_font_size_slider,
-        
-        column![
-            text(format!("SCP Number Line Spacing: {:.2}x", config.scp_line_spacing)).size(12),
-            row![
-                slider(0.5..=3.0, config.scp_line_spacing, Message::ScpLineSpacingChanged).step(0.05),
-                text_input("1.2", &format!("{:.2}", config.scp_line_spacing))
-                    .on_input(|s| Message::ScpLineSpacingTextChanged(s))
-                    .padding(5)
-                    .width(60),
-            ].spacing(5)
-        ].spacing(5),
-
-        object_class_font_size_slider,
-
-        column![
-            text(format!("Object Class Line Spacing: {:.2}x", config.class_line_spacing)).size(12),
-            row![
-                slider(0.5..=3.0, config.class_line_spacing, Message::ClassLineSpacingChanged).step(0.05),
-                text_input("1.2", &format!("{:.2}", config.class_line_spacing))
-                    .on_input(|s| Message::ClassLineSpacingTextChanged(s))
-                    .padding(5)
-                    .width(60),
-            ].spacing(5)
-        ].spacing(5),
-        row![
-            text("SCP-Number Offset (X, Y):").size(12),
-            text_input("2.0", &format!("{:.4}", config.scp_text_offset.0))
-                .on_input(|s| Message::ScpTextOffsetXChanged(s))
-                .on_submit(Message::ScpTextOffsetXSubmitted(config.scp_text_offset.0.to_string()))
-                .padding(5)
-                .width(60),
-            text_input("-7.0", &format!("{:.4}", config.scp_text_offset.1))
-                .on_input(|s| Message::ScpTextOffsetYChanged(s))
-                .on_submit(Message::ScpTextOffsetYSubmitted(config.scp_text_offset.1.to_string()))
-                .padding(5)
-                .width(60),
-        ].spacing(5),
-        row![
-            text("Object Class Offset (X, Y):").size(12),
-            text_input("2.0", &format!("{:.4}", config.class_text_offset.0))
-                .on_input(|s| Message::ClassTextOffsetXChanged(s))
-                .on_submit(Message::ClassTextOffsetXSubmitted(config.class_text_offset.0.to_string()))
-                .padding(5)
-                .width(60),
-            text_input("-7.0", &format!("{:.4}", config.class_text_offset.1))
-                .on_input(|s| Message::ClassTextOffsetYChanged(s))
-                .on_submit(Message::ClassTextOffsetYSubmitted(config.class_text_offset.1.to_string()))
-                .padding(5)
-                .width(60),
-        ].spacing(5),
-        row![
-            text("SCP-Number Color (Hex):").size(12),
-            text_input("#000000", &format!("#{:02x}{:02x}{:02x}", (Color::from(config.scp_text_color).r * 255.0) as u8, (Color::from(config.scp_text_color).g * 255.0) as u8, (Color::from(config.scp_text_color).b * 255.0) as u8))
-                .on_input(move |s| {
-                    if let Ok(color) = parse_hex_color(&s) {
-                        Message::ScpTextColorChanged(color)
-                    } else {
-                        Message::ScpTextColorChanged(scp_text_color.into())
-                    }
-                })
-                .on_submit(Message::ScpTextColorSubmitted(config.scp_text_color.into()))
-                .padding(5)
-                .width(100),
-        ].spacing(5),
-        row![
-            text("Object Class Color (Hex):").size(12),
-            text_input("#000000", &format!("#{:02x}{:02x}{:02x}", (Color::from(config.class_text_color).r * 255.0) as u8, (Color::from(config.class_text_color).g * 255.0) as u8, (Color::from(config.class_text_color).b * 255.0) as u8))
-                .on_input(move |s| {
-                    if let Ok(color) = parse_hex_color(&s) {
-                        Message::ClassTextColorChanged(color)
-                    } else {
-                        Message::ClassTextColorChanged(class_text_color.into())
-                    }
-                })
-                .on_submit(Message::ClassTextColorSubmitted(config.class_text_color.into()))
-                .padding(5)
-                .width(100),
-        ].spacing(5),
-        button("Reset Text").on_press(Message::ResetText).padding(10),
-    ].spacing(10)).style(theme::panel());
-
-    let image_section = container(column![
-        text("User Image:").size(14),
-        button("Select Image")
-            .on_press(Message::SelectImagePressed)
-            .padding(10),
-        if let Some(path) = &config.image_path {
-            Into::<Element<'static, Message>>::into(text(format!("File: {}", path.file_name().unwrap().to_string_lossy())).size(12))
-        } else {
-            Into::<Element<'static, Message>>::into(text("No image selected"))
-        },
-    ]
-    .spacing(10)).style(theme::panel());
-
-    let image_options_section = container(column![
-        validation_display,
-        resize_method,
-    ].spacing(10)).style(theme::panel());
-
-    let image_adjustment_section: iced::widget::Container<'_, Message, iced::Theme> = if !config.use_alternate_style {
-        container(column![
-            text("Image Adjustments:").size(14),
-            text(format!("Brightness: {:.2}", config.brightness)).size(12),
-            row![
-                slider(-1.0..=1.0, config.brightness, |v| Message::BrightnessChanged(v)).step(0.05),
-                text_input("0.0", &format!("{:.4}", config.brightness))
-                    .on_input(|s| Message::BrightnessTextChanged(s))
-                    .on_submit(Message::BrightnessSubmitted(config.brightness.to_string()))
-                    .padding(5)
-                    .width(60),
+            section_header("Image"),
+            Space::with_height(10),
+            button("Select Image")
+                .on_press(Message::SelectImagePressed)
+                .padding(12)
+                .style(iced::theme::Button::Primary),
+            if let Some(path) = &config.image_path {
+                Into::<Element<'static, Message>>::into(
+                    text(format!("{}", path.file_name().unwrap().to_string_lossy()))
+                        .size(12)
+                        .style(iced::theme::Text::Color(theme::TEXT_SECONDARY))
+                )
+            } else {
+                Into::<Element<'static, Message>>::into(
+                    text("No image selected")
+                        .size(12)
+                        .style(iced::theme::Text::Color(theme::TEXT_SECONDARY))
+                )
+            },
+            Space::with_height(10),
+            validation_display,
+            Space::with_height(15),
+            column![
+                label_text("Resize Method"),
+                pick_list(
+                    vec![ResizeMethod::CropToFit, ResizeMethod::Stretch, ResizeMethod::Letterbox],
+                    Some(config.resize_method),
+                    Message::ResizeMethodChanged
+                )
+                .padding(10)
+                .width(200),
             ]
-            .spacing(5),
-            text(format!("Contrast: {:.2}", config.contrast)).size(12),
-            row![
-                slider(0.0..=2.0, config.contrast, |v| Message::ContrastChanged(v)).step(0.05),
-                text_input("1.0", &format!("{:.4}", config.contrast))
-                    .on_input(|s| Message::ContrastTextChanged(s))
-                    .on_submit(Message::ContrastSubmitted(config.contrast.to_string()))
-                    .padding(5)
-                    .width(60),
-            ]
-            .spacing(5),
-            checkbox("Grayscale", config.grayscale).on_toggle(Message::GrayscaleToggled),
+            .spacing(8),
         ]
-        .spacing(5)).style(theme::panel())
+        .spacing(12)
+        .padding(20)
+    )
+    .style(theme::card());
+
+    let image_adjustments = if !config.use_alternate_style {
+        container(
+            column![
+                section_header("Image Adjustments"),
+                Space::with_height(10),
+                column![
+                    label_text(&format!("Brightness: {:.2}", config.brightness)),
+                    row![
+                        slider(-1.0..=1.0, config.brightness, Message::BrightnessChanged)
+                            .step(0.05)
+                            .width(250),
+                        text_input("0.0", &format!("{:.2}", config.brightness))
+                            .on_input(Message::BrightnessTextChanged)
+                            .on_submit(Message::BrightnessSubmitted(config.brightness.to_string()))
+                            .padding(8)
+                            .width(70),
+                    ]
+                    .spacing(10)
+                    .align_items(iced::Alignment::Center),
+                ]
+                .spacing(8),
+                Space::with_height(10),
+                column![
+                    label_text(&format!("Contrast: {:.2}", config.contrast)),
+                    row![
+                        slider(0.0..=2.0, config.contrast, Message::ContrastChanged)
+                            .step(0.05)
+                            .width(250),
+                        text_input("1.0", &format!("{:.2}", config.contrast))
+                            .on_input(Message::ContrastTextChanged)
+                            .on_submit(Message::ContrastSubmitted(config.contrast.to_string()))
+                            .padding(8)
+                            .width(70),
+                    ]
+                    .spacing(10)
+                    .align_items(iced::Alignment::Center),
+                ]
+                .spacing(8),
+                Space::with_height(10),
+                checkbox("Grayscale", config.grayscale)
+                    .on_toggle(Message::GrayscaleToggled)
+                    .text_size(13),
+            ]
+            .spacing(12)
+            .padding(20)
+        )
+        .style(theme::card())
     } else {
         container(column![])
     };
 
-    let hazard_section = container(column![
-        text("Hazard Warning:").size(14),
-        hazard_picker,
-    ].spacing(5)).style(theme::panel());
-
-    let texture_section = container(column![
-        checkbox("Apply texture overlay", config.apply_texture)
-            .on_toggle(Message::TextureToggled),
-        if config.apply_texture {
-            Into::<Element<'static, Message>>::into(column![
-                text(format!("Opacity: {:.0}%", config.texture_opacity * 100.0)).size(12),
-                row![
-                    slider(0.0..=1.0, config.texture_opacity, |v| Message::OpacityTextChanged(v.to_string())).step(0.05),
-                    text_input("0.3", &format!("{:.4}", config.texture_opacity))
-                        .on_input(|s| Message::OpacityTextChanged(s))
-                        .on_submit(Message::OpacitySubmitted(config.texture_opacity.to_string()))
-                        .padding(5)
-                        .width(60),
-                ]
-                .spacing(5),
-            ]
-            .spacing(5))
-        } else {
-            Into::<Element<'static, Message>>::into(column![])
-        }
-        
-    ]
-    .spacing(5)).style(theme::panel());
-    let burn_opacity = config.burn_opacity; // Copy f32 to use in closures
-
-    let burn_section = container(column![
-        checkbox("Apply burn overlay", config.apply_burn)
-            .on_toggle(Message::BurnToggled),
-        if config.apply_burn {
-            Into::<Element<'static, Message>>::into(column![
-                text(format!("Burn Opacity: {:.0}%", burn_opacity * 100.0)).size(12),
-                row![
-                    slider(0.0..=1.0, burn_opacity, Message::BurnOpacityChanged).step(0.05),
-                    text_input("0.5", &format!("{:.2}", burn_opacity))
-                        .on_input(move |s| Message::BurnOpacityTextChanged(s)) // Use move here
-                        .padding(5)
-                        .width(60),
-                ]
-                .spacing(5),
-            ]
-            .spacing(5))
-        } else {
-            Into::<Element<'static, Message>>::into(column![])
-        }
-    ]
-    .spacing(5)).style(theme::panel());
-    let export_section: iced::widget::Container<'_, Message, iced::Theme> = container(column![
-        text("Export & Project Management: ").size(14),
+    let hazard_section = column![
+        label_text("Hazard Warning"),
         row![
-            text("Resolution: ").size(12),
-            button("512").on_press(Message::ResolutionChanged(512)).padding(5),
-            button("1024").on_press(Message::ResolutionChanged(1024)).padding(5),
-            button("2048").on_press(Message::ResolutionChanged(2048)).padding(5),
+            pick_list(
+                Hazard::all(),
+                config.selected_hazard,
+                Message::HazardSelected
+            )
+            .padding(10)
+            .width(200),
+            button("Clear")
+                .on_press(Message::ClearHazard)
+                .padding(10)
+                .style(iced::theme::Button::Secondary),
         ]
-        .spacing(5),
-        column![
-            row![
-                button("Save Config").on_press(Message::SaveConfig).padding(10),
-                button("Load Config").on_press(Message::LoadConfig).padding(10),
-            ]
-            .spacing(5),
-            row![
-                button("Save Project").on_press(Message::SaveProject).padding(10),
-                button("Load Project").on_press(Message::LoadProject).padding(10),
-            ]
-            .spacing(5),
-        ]
-        .spacing(5),
-        button("Export Label")
-            .on_press(Message::ExportPressed),
+        .spacing(10),
     ]
-    .spacing(10)).style(theme::panel());
-let content = column![
-    title,
-    row![
-        main_settings,
-        style_section,
-    ].spacing(15),
-    row![
-        text_settings_section,
-        image_section,
-    ].spacing(15),
-    row![
-        image_options_section,
-        image_adjustment_section,
-    ].spacing(15),
-    row![
-        hazard_section,
-        texture_section,
-    ].spacing(15),
-    row![
-        burn_section,
-    ].spacing(15),
-    export_section,
-]
-.spacing(20)
-.padding(10);
+    .spacing(8);
 
-iced::widget::scrollable(content)
-    .height(Length::Fill)
-    .width(Length::Fill)
-    .into()
+    let texture_section = column![
+        checkbox("Apply texture overlay", config.apply_texture)
+            .on_toggle(Message::TextureToggled)
+            .text_size(13),
+        if config.apply_texture {
+            Into::<Element<'static, Message>>::into(
+                column![
+                    Space::with_height(8),
+                    label_text(&format!("Opacity: {:.0}%", config.texture_opacity * 100.0)),
+                    row![
+                        slider(0.0..=1.0, config.texture_opacity, |v| Message::OpacityTextChanged(v.to_string()))
+                            .step(0.05)
+                            .width(180),
+                        text_input("0.3", &format!("{:.2}", config.texture_opacity))
+                            .on_input(Message::OpacityTextChanged)
+                            .on_submit(Message::OpacitySubmitted(config.texture_opacity.to_string()))
+                            .padding(8)
+                            .width(70),
+                    ]
+                    .spacing(10)
+                    .align_items(iced::Alignment::Center),
+                ]
+                .spacing(8)
+            )
+        } else {
+            Into::<Element<'static, Message>>::into(column![])
+        }
+    ]
+    .spacing(8);
 
+    let burn_section = column![
+        checkbox("Apply burn overlay", config.apply_burn)
+            .on_toggle(Message::BurnToggled)
+            .text_size(13),
+        if config.apply_burn {
+            let advanced_burn_controls = if advanced_burn_settings_visible {
+                column![
+                    Space::with_height(10),
+                    label_text(&format!("Scale Multiplier: {:.2}", config.burn_scale_multiplier)),
+                    slider(1.0..=20.0, config.burn_scale_multiplier, Message::BurnScaleMultiplierChanged).step(0.1),
+                    label_text(&format!("Detail Blend: {:.2}", config.burn_detail_blend)),
+                    slider(0.0..=1.0, config.burn_detail_blend, Message::BurnDetailBlendChanged).step(0.05),
+                    label_text(&format!("Turbulence Freq: {:.2}", config.burn_turbulence_freq)),
+                    slider(0.1..=10.0, config.burn_turbulence_freq, Message::BurnTurbulenceFreqChanged).step(0.1),
+                    label_text(&format!("Turbulence Strength: {:.2}", config.burn_turbulence_strength)),
+                    slider(0.0..=1.0, config.burn_turbulence_strength, Message::BurnTurbulenceStrengthChanged).step(0.01),
+                ].spacing(8)
+            } else {
+                column![]
+            };
+
+            Into::<Element<'static, Message>>::into(
+                column![
+                    Space::with_height(8),
+                    label_text("Burn Style"),
+                    pick_list(
+                        vec![BurnType::Perlin, BurnType::Patches],
+                        Some(config.burn_type),
+                        Message::BurnTypeChanged,
+                    )
+                    .padding(10),
+                    Space::with_height(10),
+                    label_text(&format!("Burn Amount: {:.0}%", config.burn_amount * 100.0)),
+                    row![
+                        slider(0.0..=1.0, config.burn_amount, |v| Message::BurnAmountChanged(v.to_string()))
+                            .step(0.01)
+                            .width(180),
+                        text_input("0.35", &format!("{:.2}", config.burn_amount))
+                            .on_input(Message::BurnAmountChanged)
+                            .padding(8)
+                            .width(70),
+                    ]
+                    .spacing(10)
+                    .align_items(iced::Alignment::Center),
+
+                    label_text(&format!("Burn Scale: {:.2}", config.burn_scale)),
+                    slider(0.1..=10.0, config.burn_scale, Message::BurnScaleChanged)
+                        .step(0.05)
+                        .width(250),
+
+                    label_text(&format!("Burn Detail: {:.2}", config.burn_detail)),
+                    slider(0.0..=1.0, config.burn_detail, Message::BurnDetailChanged)
+                        .step(0.05)
+                        .width(250),
+
+                    label_text(&format!("Edge Softness: {:.2}", config.burn_edge_softness)),
+                    slider(0.0..=1.0, config.burn_edge_softness, Message::BurnEdgeSoftnessChanged)
+                        .step(0.05)
+                        .width(250),
+
+                    label_text(&format!("Irregularity: {:.2}", config.burn_irregularity)),
+                    slider(0.0..=1.0, config.burn_irregularity, Message::BurnIrregularityChanged)
+                        .step(0.05)
+                        .width(250),
+
+                    label_text(&format!("Edge Darkness (Char): {:.2}", config.burn_char)),
+                    slider(0.0..=1.0, config.burn_char, Message::BurnCharChanged)
+                        .step(0.05)
+                        .width(250),
+
+                    label_text(&format!("Seed: {}", config.burn_seed)),
+                    row![
+                        text_input("Seed", &config.burn_seed.to_string())
+                            .on_input(Message::BurnSeedTextChanged)
+                            .on_submit(Message::BurnSeedSubmitted)
+                            .padding(8)
+                            .width(100),
+                        button("Randomize")
+                            .on_press(Message::BurnSeedRandomized)
+                            .padding(8)
+                            .style(iced::theme::Button::Secondary),
+                    ]
+                    .spacing(10),
+                    Space::with_height(15),
+                    checkbox("Advanced Burn Settings", advanced_burn_settings_visible)
+                        .on_toggle(Message::ToggleAdvancedBurnSettings),
+                    advanced_burn_controls,
+                ]
+                .spacing(8)
+            )
+        } else {
+            Into::<Element<'static, Message>>::into(column![])
+        }
+    ]
+    .spacing(8);
+
+    let effects_section = container(
+        column![
+            section_header("Effects & Overlays"),
+            Space::with_height(10),
+            hazard_section,
+            Space::with_height(15),
+            texture_section,
+            Space::with_height(15),
+            burn_section,
+        ]
+        .spacing(12)
+        .padding(20)
+    )
+    .style(theme::card());
+
+    let export_section = container(
+        column![
+            section_header("Export & Project"),
+            Space::with_height(10),
+            label_text("Resolution:"),
+            row(
+                [512, 1024, 2048].iter().map(|&res| {
+                    radio(
+                        format!("{}px", res),
+                        res,
+                        Some(config.output_resolution),
+                        Message::ResolutionChanged,
+                    )
+                    .into()
+                }).collect::<Vec<_>>()
+            ).spacing(10),
+            Space::with_height(5),
+            text("Note: Increasing resolution interpolates the image, it does not add new detail.")
+                .size(12)
+                .style(iced::theme::Text::Color(theme::TEXT_SECONDARY)),
+            Space::with_height(15),
+            row![
+                button("Save Config")
+                    .on_press(Message::SaveConfig)
+                    .padding(10)
+                    .style(iced::theme::Button::Secondary),
+                button("Load Config")
+                    .on_press(Message::LoadConfig)
+                    .padding(10)
+                    .style(iced::theme::Button::Secondary),
+                Space::with_width(10),
+                button(" Save Project")
+                    .on_press(Message::SaveProject)
+                    .padding(10)
+                    .style(iced::theme::Button::Secondary),
+                button(" Load Project")
+                    .on_press(Message::LoadProject)
+                    .padding(10)
+                    .style(iced::theme::Button::Secondary),
+            ]
+            .spacing(8),
+            Space::with_height(15),
+            button("Export Label")
+                .on_press(Message::ExportPressed)
+                .padding(15)
+                .style(iced::theme::Button::Primary),
+        ]
+        .spacing(12)
+        .padding(20)
+    )
+    .style(theme::card());
+
+    let content = column![
+        column![
+            title,
+            subtitle,
+        ]
+        .spacing(5)
+        .padding(5),
+        Space::with_height(20),
+        basic_settings,
+        Space::with_height(15),
+        text_customization,
+        Space::with_height(15),
+        row![
+            image_section,
+            Space::with_width(15),
+            if !config.use_alternate_style {
+                Into::<Element<'static, Message>>::into(image_adjustments)
+            } else {
+                Into::<Element<'static, Message>>::into(container(column![]))
+            }
+        ]
+        .spacing(15),
+        Space::with_height(15),
+        effects_section,
+        Space::with_height(15),
+        export_section,
+        Space::with_height(20),
+    ]
+    .spacing(0)
+    .padding(20);
+
+    iced::widget::scrollable(content)
+        .height(Length::Fill)
+        .width(Length::Fill)
+        .into()
 }

@@ -1,8 +1,8 @@
 [package]
 name = "scp-label-maker"
-version = "0.2.2"
+version = "0.3.3"
 edition = "2021"
-authors = ["SCP Label Maker Team"]
+authors = ["Dominic Rogers"] # Forgot to change this placeholder
 description = "Generate authentic SCP Foundation labels with custom images and hazard warnings"
 license = "MIT"
 
@@ -14,6 +14,8 @@ iced = { version = "0.12", features = ["tokio", "image", "canvas", "advanced", "
 image = { version = "0.24.9", features = ["png", "jpeg", "gif", "bmp", "ico", "tiff", "webp", "avif", "pnm", "dds", "tga"] }
 imageproc = "0.23.0"
 gif = "0.14.1"
+noise = "0.8.0"
+
 # Font Rendering
 rusttype = "0.9"
 

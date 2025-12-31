@@ -1,9 +1,11 @@
 use super::{AssetManager, ImageProcessor, TextRenderer};
+use crate::core::noise_generator;
 use crate::models::{
     AlternateLayout, CommonLayout, LabelConfig, NormalLayout, LABEL_SIZE,
 };
-use crate::utils::LabelError;
-use image::{imageops, Rgba, RgbaImage};
+use crate::utils::{LabelError, load_image_robustly};
+use image::buffer::ConvertBuffer;
+use image::{imageops, Rgba, RgbaImage, DynamicImage};
 use iced::Color;
 use std::path::{Path, PathBuf};
 use image::codecs::jpeg::JpegEncoder;
@@ -28,12 +30,15 @@ impl LabelComposer {
         &self,
         config: &LabelConfig,
         assets: &AssetManager,
+        image_override: Option<&DynamicImage>,
     ) -> Result<RgbaImage, LabelError> {
+        log::info!("Beginning label composition.");
         let mut canvas = assets
             .get_template(&config.class_type, config.use_alternate_style)
             .clone()
             .into();
 
+        log::debug!("Rendering SCP number.");
         self.render_scp_number(&mut canvas, &config);
         
         let object_class_region = if config.use_alternate_style {
@@ -42,6 +47,7 @@ impl LabelComposer {
             CommonLayout::OBJECT_CLASS_TEXT
         };
         
+        log::debug!("Rendering object class.");
         self.text_renderer.render_text(
             &mut canvas,
             &config.object_class_text,
@@ -57,20 +63,27 @@ impl LabelComposer {
             config.class_line_spacing,
         );
         
-        self.place_user_image(&mut canvas, config)?;
+        log::debug!("Placing user image.");
+        self.place_user_image(&mut canvas, config, image_override)?;
         
+        log::debug!("Placing hazards.");
         self.place_hazards(&mut canvas, config, assets);
         
         if config.apply_texture {
+            log::debug!("Applying texture overlay.");
             self.apply_texture(&mut canvas, &assets.get_texture().clone().into(), config.texture_opacity);
         }
 
         if config.apply_burn {
-            let burn_img: RgbaImage = assets.burn_overlay.clone().into();
-            self.apply_burn_overlay(&mut canvas, &burn_img, config.burn_opacity);
+            log::debug!("Applying burn overlay with type: {:?}", config.burn_type);
+            let burn_img = noise_generator::generate_burn_mask(config, canvas.width(), canvas.height());
+            let burn_rgba: RgbaImage = burn_img.convert();
+            self.apply_burn_overlay(&mut canvas, &burn_rgba);
         }
+
         
         if config.output_resolution != LABEL_SIZE {
+            log::info!("Resizing final canvas to {}px.", config.output_resolution);
             canvas = imageops::resize(
                 &canvas,
                 config.output_resolution,
@@ -79,6 +92,7 @@ impl LabelComposer {
             );
         }
         
+        log::info!("Label composition finished.");
         Ok(canvas)
     }
         
@@ -109,15 +123,24 @@ impl LabelComposer {
         &self,
         canvas: &mut RgbaImage,
         config: &LabelConfig,
+        image_override: Option<&DynamicImage>,
     ) -> Result<(), LabelError> {
         if config.use_alternate_style {
             return Ok(());
         }
 
-        if let Some(path) = &config.image_path {
-            let mut img = image::open(path)
-                .map_err(|e| LabelError::ImageLoading(format!("Failed to open user image: {}", e)))?;
-                
+        let user_image = match image_override {
+            Some(img) => Some(img.clone()),
+            None => {
+                if let Some(path) = &config.image_path {
+                    Some(load_image_robustly(path)?)
+                } else {
+                    None
+                }
+            }
+        };
+
+        if let Some(mut img) = user_image {
             if config.grayscale {
                 img = img.grayscale();
             }
@@ -177,25 +200,25 @@ impl LabelComposer {
         }
     }
 
-    fn apply_burn_overlay(&self, canvas: &mut RgbaImage, burn: &RgbaImage, opacity: f32) {
+    fn apply_burn_overlay(&self, canvas: &mut RgbaImage, burn: &RgbaImage) {
         for (x, y, pixel) in canvas.enumerate_pixels_mut() {
             if let Some(burn_pixel) = burn.get_pixel_checked(x, y) {
-                let alpha = (burn_pixel[3] as f32 / 255.0) * opacity;
-                
+                let alpha = burn_pixel[0] as f32 / 255.0;
                 if alpha > 0.0 {
                     for i in 0..3 {
-                        pixel[i] = (pixel[i] as f32 * (1.0 - alpha) + burn_pixel[i] as f32 * alpha) as u8;
+                        pixel[i] = (pixel[i] as f32 * (1.0 - alpha)).max(10.0) as u8;
                     }
                 }
             }
         }
     }
+
 }
 
 pub fn generate_and_save_label(config: &LabelConfig, output_path: &PathBuf) -> Result<(), LabelError> {
     let assets = AssetManager::load_all()?;
     let composer = LabelComposer::new()?;
-    let image = composer.compose(config, &assets)?;
+    let image = composer.compose(config, &assets, None)?;
 
     let output_dir = output_path.parent().unwrap_or(Path::new("."));
     std::fs::create_dir_all(output_dir)

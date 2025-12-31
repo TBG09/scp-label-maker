@@ -19,3 +19,8 @@ Thumbs.db
 /output/
 *.png
 *.jpg
+
+
+# Other
+*.zip
+/dist

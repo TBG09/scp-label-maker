@@ -1,5 +1,19 @@
 use crate::models::{ImageValidation, ValidationStatus, NormalLayout};
 use image::{DynamicImage, GenericImageView};
+use std::path::Path;
+use crate::utils::LabelError;
+
+
+pub fn load_image_robustly(path: &Path) -> Result<DynamicImage, LabelError> {
+    let bytes = std::fs::read(path)
+        .map_err(|e| LabelError::ImageLoading(format!("Failed to read file: {}", e)))?;
+
+    let format = image::guess_format(&bytes)
+        .map_err(|e| LabelError::ImageLoading(format!("Could not determine image format: {}", e)))?;
+
+    image::load_from_memory_with_format(&bytes, format)
+        .map_err(|e| LabelError::ImageLoading(format!("Failed to decode image: {}", e)))
+}
 
 pub fn validate_user_image(image: &DynamicImage) -> ImageValidation {
     let (width, height) = image.dimensions();

@@ -5,6 +5,21 @@ use rand::{thread_rng, Rng};
 use iced::Color;
 
 
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, clap::ValueEnum)]
+pub enum BurnType {
+    Perlin,
+    Patches,
+}
+
+impl std::fmt::Display for BurnType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BurnType::Perlin => write!(f, "Perlin"),
+            BurnType::Patches => write!(f, "Patches"),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct SerializableColor {
     pub r: f32,
@@ -61,8 +76,19 @@ pub struct LabelConfig {
     pub class_text_color: SerializableColor,
     pub scp_line_spacing: f32,   
     pub class_line_spacing: f32,
-    pub burn_opacity: f32,
     pub apply_burn: bool,
+    pub burn_type: BurnType,
+    pub burn_amount: f32,
+    pub burn_scale: f32,
+    pub burn_detail: f32,
+    pub burn_edge_softness: f32,
+    pub burn_irregularity: f32,
+    pub burn_char: f32,
+    pub burn_seed: u32,
+    pub burn_scale_multiplier: f32,
+    pub burn_detail_blend: f32,
+    pub burn_turbulence_freq: f32,
+    pub burn_turbulence_strength: f32,
 }
 
 impl Default for LabelConfig {
@@ -93,8 +119,19 @@ impl Default for LabelConfig {
             class_text_color: Color::BLACK.into(),
             scp_line_spacing: 1.2,
             class_line_spacing: 1.2,
-            burn_opacity: 0.5,
             apply_burn: false,
+            burn_type: BurnType::Perlin,
+            burn_amount: 0.35,
+            burn_scale: 1.0,
+            burn_detail: 0.5,
+            burn_edge_softness: 0.4,
+            burn_irregularity: 0.3,
+            burn_char: 0.7,
+            burn_seed: rng.gen(),
+            burn_scale_multiplier: 5.0,
+            burn_detail_blend: 0.5,
+            burn_turbulence_freq: 2.0,
+            burn_turbulence_strength: 0.1,
         }
     }
 }

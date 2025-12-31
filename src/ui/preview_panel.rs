@@ -1,7 +1,8 @@
-
 use crate::app::Message;
-use iced::widget::{column, container, image, text, row, button, Space};
+use iced::widget::{Row, Space, button, column, container, image, row, text};
 use iced::{Element, Length, alignment};
+use iced::theme::Text as TextStyle;
+use crate::ui::theme;
 
 pub fn view(
     preview: &Option<iced::widget::image::Handle>,
@@ -12,76 +13,130 @@ pub fn view(
     total_frames: usize,
 ) -> Element<'static, Message> {
     
-    let zoom_controls = row![
-        button("-").on_press(Message::ZoomOutPressed).padding(5),
-        button("+").on_press(Message::ZoomInPressed).padding(5),
-        button("Reset").on_press(Message::ZoomResetPressed).padding(5),
-        text(format!("Zoom: {:.0}%", zoom_factor * 100.0))
-            .size(14)
-            .vertical_alignment(alignment::Vertical::Center),
-    ]
-    .spacing(10);
-
-    // let gif_controls = if is_gif {
-    //     let play_pause_button = if is_playing {
-    //         button("⏸ Pause").on_press(Message::ToggleGifPlayback).padding(5)
-    //     } else {
-    //         button("▶ Play").on_press(Message::ToggleGifPlayback).padding(5)
-    //     };
-
-    //     let frame_info = text(format!("Frame: {}/{}", current_frame + 1, total_frames))
-    //         .size(14)
-    //         .vertical_alignment(alignment::Vertical::Center);
-
-    //     row![
-    //         play_pause_button,
-    //         frame_info,
-    //         text("(GIF Animation)")
-    //             .size(12)
-    //             .style(iced::Color::from_rgb(0.7, 0.7, 0.7))
-    //             .vertical_alignment(alignment::Vertical::Center),
-    //     ]
-    //     .spacing(10)
-    // } else {
-    //     row![].spacing(0)
-    // };
-
-    let controls = if is_gif {
-        column![
-            zoom_controls,
-            // gif_controls,
+    let zoom_controls = container(
+        row![
+            button("−")
+                .on_press(Message::ZoomOutPressed)
+                .padding([8, 16])
+                .style(iced::theme::Button::Secondary),
+            button("+")
+                .on_press(Message::ZoomInPressed)
+                .padding([8, 16])
+                .style(iced::theme::Button::Secondary),
+            button("Reset")
+                .on_press(Message::ZoomResetPressed)
+                .padding([8, 16])
+                .style(iced::theme::Button::Secondary),
+            Space::with_width(15),
+            container(
+                text(format!("{:.0}%", zoom_factor * 100.0))
+                    .size(14)
+                    .style(iced::theme::Text::Color(theme::TEXT_SECONDARY))
+            )
+            .padding([8, 12])
+            .style(theme::inline_panel()),
         ]
-        .spacing(10)
+        .spacing(8)
+        .align_items(iced::Alignment::Center)
+    )
+    .padding(12)
+    .style(theme::card());
+
+    let gif_controls = if is_gif {
+        container(
+            row![
+                if is_playing {
+                    button("⏸ Pause")
+                        .on_press(Message::ToggleGifPlayback)
+                        .padding([8, 16])
+                        .style(iced::theme::Button::Primary)
+                } else {
+                    button("▶ Play")
+                        .on_press(Message::ToggleGifPlayback)
+                        .padding([8, 16])
+                        .style(iced::theme::Button::Primary)
+                },
+                Space::with_width(15),
+                container(
+                    text(format!("Frame {}/{}", current_frame + 1, total_frames))
+                        .size(14)
+                        .style(iced::theme::Text::Color(theme::TEXT_PRIMARY))
+                )
+                .padding([8, 12])
+                .style(theme::inline_panel()),
+                container(
+                    text("GIF Animation")
+                        .size(12)
+                        .style(iced::theme::Text::Color(theme::ACCENT))
+                )
+                .padding([6, 10])
+                .style(theme::badge()),
+            ]
+            .spacing(8)
+            .align_items(iced::Alignment::Center)
+        )
+        .padding(12)
+        .style(theme::card())
     } else {
-        column![zoom_controls]
+        container(column![])
     };
 
-    let preview_image_element: Element<'static, Message> = if let Some(handle) = preview {
+    let preview_element = if let Some(handle) = preview {
         let scaled_width = (512.0 * zoom_factor) as u16;
         let scaled_height = (512.0 * zoom_factor) as u16;
         
-        image(handle.clone())
-            .width(scaled_width)
-            .height(scaled_height)
-            .into()
+        container(
+            container(
+                image(handle.clone())
+                    .width(scaled_width)
+                    .height(scaled_height)
+            )
+            .padding(20)
+            .style(theme::preview_backdrop())
+        )
+        .center_x()
+        .center_y()
+        .width(Length::Fill)
+        .height(Length::Fill)
     } else {
-        text("Generating preview...")
-            .size(14)
-            .into()
+        container(
+            column![
+                text("")
+                    .size(48)
+                    .style(iced::theme::Text::Color(theme::ACCENT)),
+                Space::with_height(10),
+                text("Generating preview...")
+                    .size(16)
+                    .style(iced::theme::Text::Color(theme::TEXT_SECONDARY)),
+            ]
+            .align_items(iced::Alignment::Center)
+        )
+        .center_x()
+        .center_y()
+        .width(Length::Fill)
+        .height(Length::Fill)
     };
 
-    let content = container(
-        column![
-            controls,
-            Space::with_height(10),
-            preview_image_element,
-        ]
-        .spacing(10)
-    )
-    .width(Length::Fill)
-    .height(Length::Fill)
+    let content = column![
+        zoom_controls,
+        if is_gif {
+            Into::<Element<'static, Message>>::into(column![
+                Space::with_height(12),
+                gif_controls,
+            ])
+        } else {
+            Into::<Element<'static, Message>>::into(column![])
+        },
+        Space::with_height(20),
+        preview_element,
+    ]
+    .spacing(0)
     .padding(20)
-    .into();
+    .width(Length::Fill)
+    .height(Length::Fill);
 
-    content
+    container(content)
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .into()
 }
